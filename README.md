@@ -46,6 +46,7 @@ $ ./gas-relay-signer
 * [Deploy and interact with the LACChain ID verifiable credential registry smart contract](https://github.com/lacchain/besu-id/blob/main/Manual%20Identidad%20-%20VC%20English.pdf)
 * [Stress testing and performance of the network with the GAS distribution mechanism](https://github.com/lacchain/gas-management/blob/master/docs/STRESS_TESTING.md)
 * [Comparison with Ethereum](https://github.com/lacchain/gas-management/blob/master/docs/COMPARISON_WITH_ETHEREUM.md)
+* [FAQ](https://github.com/LACNet-Networks/gas-management/blob/master/docs/FAQ.md)
 
 ## Copyright 2021 LACChain
 
