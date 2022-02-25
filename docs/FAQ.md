@@ -12,6 +12,7 @@ This document is an attempt to collect some of the questions frequently asked by
 		3.	[How much Gas does my transaction consume?](#how-much-gas-does-my-transaction-consume)
 		4.	[How much is the price of gas in LACNET?](#how-much-is-the-price-of-gas-in-lacnet)             
          5.  [How to implement custom account permissioning](#how-to-implement-custom-account-permissioning)
+         6.  [Resend transactions due to transactions rejected](#resend-transactions-due-to-transactions-rejected)
 
 ## General Questions
 
@@ -69,4 +70,21 @@ Gas price is 0. You do not need to buy a token or pay a transaction fee to deplo
 
 ### How to implement custom account permissioning
 
-To implement a custom account permissiong in your node you can take this [example](https://github.com/LACNet-Networks/gas-management/blob/master/samples/custom-permissioning-contracts/AccountRules.sol). This example to allow only certain accounts to send transactions to a specific contract destination. You can add account using addAccount method. Is important to mentio that you can change whatever you want, but **keep the inheritance of AccountRulesProxy.sol** in your contract. You can put your own logic in **transactionAllowed** function
+To implement a custom account permissiong in your node you can take this [example](https://github.com/LACNet-Networks/gas-management/blob/master/samples/custom-permissioning-contracts/AccountRules.sol). This example to allow only certain accounts to send transactions to a specific contract destination. You can add account using addAccount method. Is important to mentio that you can change whatever you want, but **keep the inheritance of AccountRulesProxy.sol** in your contract. You can put your own logic in **transactionAllowed** function.
+
+### Resend transactions due to transactions rejected
+
+With the GAS model, all transactions go through a single smart contract that acts as a relay, so this contract is responsible for verifying that the transaction meets certain requirements. In case the transaction is rejected, a BadTransaction event will be issued with a error code indicating the reason why it was rejected:
+
+* MaxBlockGasLimit:(0). It means that the transaction sent exceeded the maximum gas limit allowed.
+* BadOriginalSender:(1). It means the sender is not the same who sign the transaction.
+* BadNonce:(2). It means that the nonce sent is not correct.
+* NotEnoughGas:(3). This means that the node does not have enough gas to be able to execute the transaction.
+* IsNotContract:(4). It means the recipient contract address does not have any code stored, therefore it is not a contract.
+* EmptyCode:(5). It means you are trying to deploy an empty code.
+* InvalidSignature:(6). It means the signature of your transaction is not correct.
+* InvalidDestination:(7). It means your are trying to execute an admin contract.
+
+If this happens, you will have to forward the transaction back to the node. We recommend that there should be a transaction manager component, supported by a queuing system, in order to be able to queue the transactions, and in the event of failures, to be able to resend the transactions that failed. For the queues, technologies such as RabbitMQ, Kafka, etc. You are be able to check our [architecture recommendation](https://github.com/LACNet-Networks/besu-pro-testnet/blob/master/DAPP_ARCHITECTURE.md)
+
+
