@@ -48,7 +48,7 @@ $ ./gas-relay-signer
 * [Comparison with Ethereum](https://github.com/lacchain/gas-management/blob/master/docs/COMPARISON_WITH_ETHEREUM.md)
 * [FAQ](https://github.com/LACNet-Networks/gas-management/blob/master/docs/FAQ.md)
 
-## Copyright 2021 LACChain
+## Copyright 2022 LACNet
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
