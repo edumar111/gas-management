@@ -1,3 +1,5 @@
+**IMPORTANT NOTE:** *The ongoing development of this project has migrated to the LACNet organization. Please use [LACNet's branch](https://github.com/LACNetNetworks/gas-management) instead of this repository which has been deprecated and is no longer supported.*
+
 # Gas Management
 
 This solution is in charge of distributing gas to the different LACChain Besu writer nodes, it is composed of backend components such as smart contracts. Gas distribution is automatic, whose logic is written in smart contracts. 
