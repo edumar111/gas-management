@@ -50,7 +50,7 @@ Next step is set your node address(by default) to model gas. Please, run these c
 $ cd /root/lacchain/data
 $ cat nodeAddress
 ```
-Now send an email with the subject "permissioning node in testnet" to *adrianp@iadb.org* with copy to *eduardoma@iadb.org* writing as content your *node address* and your the name of your organization.
+Now send an email with the subject "permissioning node in testnet" to *tech.support@lac-net.net* writing as content your *node address* and your the name of your organization.
 
 When you receive the response, your node will be ready to send transactions or deploy contracts.
 
