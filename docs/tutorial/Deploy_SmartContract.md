@@ -5,16 +5,19 @@ This tutorial provides a basic deployment of a smart contract on LACChain networ
 The first step is to run a writer node in one of the LACChain networks. We recommend that you have a node running on the testnet. To be able to provision a node in the testnet network clone this repository.
 
 ```shell
-$ git clone https://github.com/lacchain/besu-pro-testnet
-$ git checkout david19_network
-$ cd besu-pro-testnet/
+$ git clone https://github.com/LACNetNetworks/besu-networks
+$ cd besu-networks/
 ```
 
-Please, make sure you are in *david19_network* branch
+After, follow this instructions [here](https://github.com/LACNetNetworks/besu-networks/blob/master/DEPLOY_NODE.md) to provision a *writer node* on *testnet-david19*.
 
-After, follow this instructions [here](https://github.com/lacchain/besu-pro-testnet/tree/david19_network) to provision a *writer node*.
+Finally, [check your writer](https://github.com/LACNetNetworks/besu-networks/blob/master/DEPLOY_NODE.md#checking-your-connection) node is working well.
 
-Finally, [check your writer](https://github.com/lacchain/besu-pro-testnet/tree/david19_network#checking-your-connection) node is working well.
+Make sure that the version of Besu is equal to or greater than 21.7.4
+
+```shell
+$ besu --version
+```
 
 ## 2. Run relaysigner component
 
