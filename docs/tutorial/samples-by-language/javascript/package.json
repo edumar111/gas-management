@@ -1,0 +1,20 @@
+{
+  "name": "lacchain-tools-javascript",
+  "version": "1.0.0",
+  "description": "",
+  "main": "DeploySendCheck.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"I haven't implemented tests. Please help me do that :) \""
+  },
+  "author": "Nicolas Serrano",
+  "license": "ISC",
+  "dependencies": {
+    "ethereumjs-tx": "^1.3.7",
+    "rlp": "^2.2.6",
+    "solc": "^0.8.14",
+    "web3": "^1.2.0"
+  }
+}
