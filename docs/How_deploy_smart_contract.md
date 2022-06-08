@@ -2,6 +2,46 @@
 
 This guide aims to give you an overview of some mainstream tools that you can use to deploy Smart Contracts.
 
+## Requisites
+
+### Run relaysigner component
+
+Wait your previously writer node deployed to have synced the entire blockchain.
+
+Check that you have the environment variable WRITER_KEY set on your node
+
+```shell
+$ env
+```
+In case you don't have the WRITER_KEY variable in your environment, please set this variable with the content of the file /lacchain/data/key
+
+```shell
+$ export WRITER_KEY=PRIVATE_KEY  //where PRIVATE_KEY is content of /lacchain/data/key
+```
+
+Enter the node's console and run the following commands
+
+```shell
+$ cd /root/lacchain/gas-relay-signer
+$ systemctl import-environment WRITER_KEY
+$ service relaysigner start
+```
+
+Verify relaysigner is working well, go to the log file.
+
+```shell
+$ cd /root/lacchain/gas-relay-signer/log 
+$ tail -100 idbServiceLog.log
+```
+
+The first lines should be something like this: 
+```
+General Logger:	2021/11/23 16:19:19 main.go:60: smartContract=0x3B62E51E37d090453600395Ff1f9bdf4d7398404 AgentKey=/home/adrian/.ethereum/keystore/UTC--2020-06-26T19-00-23.241896464Z--bceda2ba9af65c18c7992849c312d1db77cf008e
+General Logger:	2021/11/23 16:19:19 main.go:65: Init RelaySigner
+General Logger:	2021/11/23 16:19:19 client.go:46: Connected to Ethereum Node: ws://localhost:4546
+```
+That means relaysigner is configured and working well.
+
 ## Truffle
 
 [Truffle](https://www.trufflesuite.com/docs/truffle/overview "Truffle Overview") is basically a development environment where you could easily develop smart contracts with it’s built-in testing framework, smart contract compilation and deployment, interactive console, and many more features.
@@ -161,3 +201,7 @@ Finally you get the deployment report where you can see the address contract sim
 ## Ethers
 
 To deploy using ethers library you are able check this [example](https://github.com/lacchain/lacchain-did-registry/blob/master/deploy.js)
+
+## Golang - Javascript
+
+To deplot using Golang language you are able check this [example](https://github.com/LACNetNetworks/gas-management/blob/master/docs/tutorial/samples-by-language/README.md)
