@@ -2,14 +2,14 @@
 This tutorial provides a basic deployment of a smart contract on LACChain networks which are configured with gas model feature. It is intended for anyone interested in deploy smart contracts on LACChain networks base on Ethereum. You don't need any programming or blockchain experience to complete this tutorial. This is just the first step.
 
 ## 1. Running a writer node
-The first step is to run a writer node in one of the LACChain networks. We recommend that you have a node running on the testnet. To be able to provision a node in the testnet network clone this repository.
+The first step is to run a writer node in one of the LACChain networks. We recommend that you have a node running on the pro-testnet. To be able to provision a node in the testnet network clone this repository.
 
 ```shell
 $ git clone https://github.com/LACNetNetworks/besu-networks
 $ cd besu-networks/
 ```
 
-After, follow this instructions [here](https://github.com/LACNetNetworks/besu-networks/blob/master/DEPLOY_NODE.md) to provision a *writer node* on *testnet-david19*.
+After, follow this instructions [here](https://github.com/LACNetNetworks/besu-networks/blob/master/DEPLOY_NODE.md) to provision a *writer node* on *pro-testnet*.
 
 Finally, [check your writer](https://github.com/LACNetNetworks/besu-networks/blob/master/DEPLOY_NODE.md#checking-your-connection) node is working well.
 
@@ -22,6 +22,17 @@ $ besu --version
 ## 2. Run relaysigner component
 
 Wait your previously writer node deployed to have synced the entire blockchain.
+
+Check that you have the environment variable WRITER_KEY set on your node
+
+```shell
+$ env
+```
+In case you don't have the WRITER_KEY variable in your environment, please set this variable with the content of the file /lacchain/data/key
+
+```shell
+$ export WRITER_KEY=PRIVATE_KEY  //where PRIVATE_KEY is content of /lacchain/data/key
+```
 
 Enter the node's console and run the following commands
 
