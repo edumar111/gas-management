@@ -6,10 +6,11 @@ To make this possible, we take advantage of the atomicity of the execution of th
 
 This function to obtain the original sender is located in an abstract contract, which has to be inherited by all the contracts that will be deployed in the network.
 
-The abstract contract to inherit is [BaseRelayRecipient](../relayhub/contracts/BaseRelayRecipient.sol). After inherit this contract you have to update the value of the internal variable trustedForwarder by the address of the RelayHub contract. This address can be found in the file /lacchain/gas-relay-signer/config.toml in "contractAddress" parameter.
-*(image below is a reference of config.toml)*
+The abstract contract to inherit is [BaseRelayRecipient](../relayhub/contracts/BaseRelayRecipient.sol). After inherit this contract you have to update the value of the internal variable trustedForwarder by one of following address.
 
-![config](images/config.png)
+On Mainnet          =
+On Protestnet       =
+On Testnet(David19) = 0xf2940f1Fe83Aac47748c62fc51b8Fc0B6Ebbc060
 
 Next, you should use _msgSender() function instead msg.sender in all your contracts.
 *(image below show you as use _msgSender() instead msg.sender)*
