@@ -12,7 +12,12 @@ On Mainnet          =
 On Protestnet       =
 On Testnet(David19) = 0xf2940f1Fe83Aac47748c62fc51b8Fc0B6Ebbc060
 
-Next, you should use _msgSender() function instead msg.sender in all your contracts.
+Next, you should use _msgSender() function instead msg.sender.
+
+*If you are using a proxy, and it makes calls to other contracts, then in destination contracts you have to keep the msg.sender*
+
+It is to mention that _msgSender() function acts as tx.origin to get the address that originated the transaction, so replace msg.sender with _msgSender() where you need the address that originated the transaction. 
+
 *(image below show you as use _msgSender() instead msg.sender)*
 
 ![recipient](images/recipient.png)
