@@ -7,8 +7,8 @@ contract BaseRelayRecipientProxy {
     address relayHubAddress;
     address owner;
 
-    constructor(address _owner, address _newRelayHub){
-        owner = _owner;
+    constructor(address _newRelayHub) {
+        owner = msg.sender;
         relayHubAddress = _newRelayHub;
     }
 
@@ -26,5 +26,9 @@ contract BaseRelayRecipientProxy {
 
     function setRelayHub(address _newRelayHub) external onlyOwner {
         relayHubAddress = _newRelayHub;
+    }
+
+    function getRelayHub() external view returns (address) {
+        return relayHubAddress;    
     }
 }

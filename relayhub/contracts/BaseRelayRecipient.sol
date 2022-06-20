@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 /**
- * A base contract to be inherited by any contract that want to obtain the original msg.sender 
+ * A base contract to be inherited by any contract that want to receive relayed transactions
  * A subclass must use "_msgSender()" instead of "msg.sender"
  */
 abstract contract BaseRelayRecipient{
@@ -10,7 +10,8 @@ abstract contract BaseRelayRecipient{
     /*
      * Forwarder singleton we accept calls from
      */
-    address internal trustedForwarder;
+    //address internal trustedForwarder = 0x5817a7Efbda3D203a48E58DEBB1484ACbb42EEbf;  //david19
+    address internal trustedForwarder = 0xEAA5420AF59305c5ecacCB38fcDe70198001d147;  //mainnet
 
     /**
      * return the sender of this call.
@@ -18,9 +19,16 @@ abstract contract BaseRelayRecipient{
      * should be used in the contract anywhere instead of msg.sender
      */
     function _msgSender() internal virtual returns (address sender) {
-        bytes memory bytesSender;
-        (,bytesSender) = trustedForwarder.call(abi.encodeWithSignature("getMsgSender()"));
+        bytes memory bytesRelayHub;
+        (,bytesRelayHub) = trustedForwarder.call(abi.encodeWithSignature("getRelayHub()"));
 
-        return abi.decode(bytesSender, (address));
+        if (msg.sender == abi.decode(bytesRelayHub, (address))){ //sender is RelayHub then return origin sender
+            bytes memory bytesSender;
+            (,bytesSender) = trustedForwarder.call(abi.encodeWithSignature("getMsgSender()"));
+        
+            return abi.decode(bytesSender, (address));
+        } else { //sender is not RelayHub, so it is another smart contract 
+            return msg.sender;
+        }
     }
 }
