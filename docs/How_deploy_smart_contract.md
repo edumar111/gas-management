@@ -198,10 +198,14 @@ Finally you get the deployment report where you can see the address contract sim
     total cost:          0 ETH
 ```
 
+## HardHat
+
+To deploy using hardhat package you are able to check this [example](https://github.com/lacchain/hardhat-gas-model)
+
 ## Ethers
 
-To deploy using ethers library you are able check this [example](https://github.com/lacchain/lacchain-did-registry/blob/master/deploy.js)
+To deploy using ethers library you are able to check this [example](https://github.com/lacchain/lacchain-did-registry/blob/master/deploy.js)
 
 ## Golang - Javascript
 
-To deplot using Golang language you are able check this [example](https://github.com/LACNetNetworks/gas-management/blob/master/docs/tutorial/samples-by-language/README.md)
+To deplot using Golang language you are able to check this [example](https://github.com/LACNetNetworks/gas-management/blob/master/docs/tutorial/samples-by-language/README.md)
