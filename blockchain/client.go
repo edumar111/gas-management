@@ -77,19 +77,20 @@ func (ec *Client) ConfigTransaction(key *ecdsa.PrivateKey, gasLimit uint64, pend
 		}
 	}
 
-	gasPrice, err := ec.client.SuggestGasPrice(context.Background())
+	//REMOVE
+	/*gasPrice, err := ec.client.SuggestGasPrice(context.Background())
 	if err != nil {
 		msg := "can't get gas price suggested"
 		err = errors.FailedConfigTransaction.Wrapf(err, msg, -32603)
 		return nil, err
-	}
+	}*/
 
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0) // in wei
 	auth.GasLimit = gasLimit   // in units
-	auth.GasPrice = gasPrice
+	auth.GasPrice = big.NewInt(0)
 
-	log.GeneralLogger.Printf("OptionsTransaction=[From:0x%x,nonce:%d,gasPrice:%s,gasLimit:%d", auth.From, nonce, gasPrice, auth.GasLimit)
+	log.GeneralLogger.Printf("OptionsTransaction=[From:0x%x,nonce:%d,gasPrice:%s,gasLimit:%d", auth.From, nonce, auth.GasPrice, auth.GasLimit)
 
 	return auth, nil
 }

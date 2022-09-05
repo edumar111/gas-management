@@ -128,12 +128,17 @@ func (service *RelaySignerService) GetTransactionReceipt(id json.RawMessage, tra
 	if receipt != nil {
 		d := sha.NewLegacyKeccak256()
 		e := sha.NewLegacyKeccak256()
+		f := sha.NewLegacyKeccak256()
+
 		d.Write([]byte("ContractDeployed(address,address,address)"))
 
 		eventContractDeployed := hex.EncodeToString(d.Sum(nil))
 
 		e.Write([]byte("TransactionRelayed(address,address,address,bool,bytes)"))
 		eventTransactionRelayed := hex.EncodeToString(e.Sum(nil))
+
+		f.Write([]byte("BadTransactionSent(address,address,uint8)"))
+		eventBadTransaction := hex.EncodeToString(f.Sum(nil))
 
 		fmt.Println("deployed contract eventKeccak:", eventContractDeployed)
 		fmt.Println("transaction relayed eventKeccak:", eventTransactionRelayed)
@@ -156,6 +161,17 @@ func (service *RelaySignerService) GetTransactionReceipt(id json.RawMessage, tra
 					json.Unmarshal(jsonReceipt, &receiptReverted)
 					receiptReverted["revertReason"] = hexutil.Encode(output)
 				}
+			}
+			if log.Topics[0].Hex() == "0x"+eventBadTransaction {
+				receipt.Status = uint64(0)
+				jsonReceipt, err := json.Marshal(receipt)
+				if err != nil {
+					HandleError(id, err)
+				}
+
+				json.Unmarshal(jsonReceipt, &receiptReverted)
+				output := getBadTransaction(id, log.Data)
+				receiptReverted["revertReason"] = hexutil.Encode(output)
 			}
 		}
 	}
@@ -215,20 +231,6 @@ func (service *RelaySignerService) VerifyGasLimit(gasLimit uint64, id json.RawMe
 	}
 	defer client.Close()
 
-	/*privateKey, err := crypto.HexToECDSA(service.Config.Application.Key)
-	    if err != nil {
-	        return false,err
-		}
-
-		publicKey := privateKey.Public()
-		publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	    if !ok {
-			err := errors.New("error casting public key to ECDSA", -32602)
-			return false,err
-		}
-
-		nodeAddress := crypto.PubkeyToAddress(*publicKeyECDSA)*/
-
 	contractAddress := common.HexToAddress(service.Config.Application.ContractAddress)
 
 	currentGasLimit, err := client.GetCurrentGasLimit(contractAddress)
@@ -242,49 +244,6 @@ func (service *RelaySignerService) VerifyGasLimit(gasLimit uint64, id json.RawMe
 	if increment(gasLimit) > currentGasLimit.Uint64() {
 		return false, nil
 	}
-
-	/*maxBlockGasLimit,err := client.GetMaxBlockGasLimit(contractAddress)
-	if err != nil {
-		return false,err
-	}
-
-	if maxBlockGasLimit != nil{
-		log.GeneralLogger.Println("logic block gasLimit:",maxBlockGasLimit.Uint64())
-	}
-
-	if (gasLimit > maxBlockGasLimit.Uint64()){
-		return false,nil
-	}*/
-
-	/*	empty,err:=isPoolEmpty(service.Config.Application.NodeURL,id)
-		if err!=nil{
-			return false,err
-		}
-
-		if empty{
-			currentGasLimit,err := client.GetCurrentGasLimit(contractAddress)
-			if err != nil {
-				return false,err
-			}
-
-			if currentGasLimit != nil {
-				log.GeneralLogger.Println("current gasLimit assigned:",currentGasLimit.Uint64())
-			}
-			if (gasLimit > currentGasLimit.Uint64()){
-				return false,nil
-			}
-		}else{
-			nodeGasLimit,err := client.GetGasLimit(contractAddress, nodeAddress)
-			if err != nil {
-				return false,err
-			}
-			if nodeGasLimit != nil {
-				log.GeneralLogger.Println("node gasLimit:",nodeGasLimit.Uint64())
-			}
-			if (gasLimit > nodeGasLimit.Uint64()){
-				return false,nil
-			}
-		}*/
 
 	return true, nil
 }
@@ -356,10 +315,50 @@ func transactionRelayedFailed(id json.RawMessage, data []byte) (bool, []byte) {
 	err = relayHubAbi.Unpack(&transactionRelayedEvent, "TransactionRelayed", data)
 
 	if err != nil {
-		fmt.Println("Failed to unpack")
+		HandleError(id, err)
 	}
 
 	return transactionRelayedEvent.Executed, transactionRelayedEvent.Output
+}
+
+func getBadTransaction(id json.RawMessage, data []byte) []byte {
+	var badTransactionEvent struct {
+		Node           common.Address
+		OriginalSender common.Address
+		ErrorCode      uint8
+	}
+
+	relayHubAbi, err := abi.JSON(strings.NewReader(RelayABI))
+	if err != nil {
+		HandleError(id, err)
+	}
+
+	err = relayHubAbi.Unpack(&badTransactionEvent, "BadTransactionSent", data)
+
+	if err != nil {
+		HandleError(id, err)
+	}
+
+	switch badTransactionEvent.ErrorCode {
+	case 0:
+		return []byte("Max block gas limit overpassed")
+	case 1:
+		return []byte("Original sender is different who signed the transaction")
+	case 2:
+		return []byte("Bad nonce assigned")
+	case 3:
+		return []byte("Not enough gas to process the transaction")
+	case 4:
+		return []byte("Destination is an empty contract")
+	case 5:
+		return []byte("Your bytecode to deploy is empty")
+	case 6:
+		return []byte("Invalid Signature")
+	case 7:
+		return []byte("Destination is not allowed")
+	}
+
+	return nil
 }
 
 func (service *RelaySignerService) ProcessNewBlocks(done <-chan interface{}) {
