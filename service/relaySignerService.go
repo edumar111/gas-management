@@ -21,7 +21,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/lacchain/gas-relay-signer/audit"
@@ -40,13 +39,13 @@ var GAS_LIMIT uint64 = 0
 
 var lock sync.Mutex
 
-//RelaySignerService is the main service
+// RelaySignerService is the main service
 type RelaySignerService struct {
 	// The service's configuration
 	Config *model.Config
 }
 
-//Init configuration parameters
+// Init configuration parameters
 func (service *RelaySignerService) Init(_config *model.Config) error {
 	service.Config = _config
 
@@ -76,7 +75,7 @@ func (service *RelaySignerService) Init(_config *model.Config) error {
 	return nil
 }
 
-//SendMetatransaction to blockchain
+// SendMetatransaction to blockchain
 func (service *RelaySignerService) SendMetatransaction(id json.RawMessage, to *common.Address, gasLimit uint64, signingData []byte, v uint8, r, s [32]byte) *rpc.JsonrpcMessage {
 	client := new(bl.Client)
 	err := client.Connect(service.Config.Application.NodeURL)
@@ -109,7 +108,7 @@ func (service *RelaySignerService) SendMetatransaction(id json.RawMessage, to *c
 	return result.Response(tx)
 }
 
-//GetTransactionReceipt from blockchain
+// GetTransactionReceipt from blockchain
 func (service *RelaySignerService) GetTransactionReceipt(id json.RawMessage, transactionID string) *rpc.JsonrpcMessage {
 	client := new(bl.Client)
 	err := client.Connect(service.Config.Application.NodeURL)
@@ -138,7 +137,7 @@ func (service *RelaySignerService) GetTransactionReceipt(id json.RawMessage, tra
 		eventTransactionRelayed := hex.EncodeToString(e.Sum(nil))
 
 		f.Write([]byte("BadTransactionSent(address,address,uint8)"))
-		eventBadTransaction := hex.EncodeToString(f.Sum(nil))
+		//		eventBadTransaction := hex.EncodeToString(f.Sum(nil))
 
 		fmt.Println("deployed contract eventKeccak:", eventContractDeployed)
 		fmt.Println("transaction relayed eventKeccak:", eventTransactionRelayed)
@@ -147,32 +146,32 @@ func (service *RelaySignerService) GetTransactionReceipt(id json.RawMessage, tra
 			if log.Topics[0].Hex() == "0x"+eventContractDeployed {
 				receipt.ContractAddress = common.BytesToAddress(log.Data)
 			}
-			if log.Topics[0].Hex() == "0x"+eventTransactionRelayed {
-				executed, output := transactionRelayedFailed(id, log.Data)
-				if !executed {
-					receipt.Status = uint64(0)
-					fmt.Println("Reverse Error:", hexutil.Encode(output))
+			/*			if log.Topics[0].Hex() == "0x"+eventTransactionRelayed {
+						executed, output := transactionRelayedFailed(id, log.Data)
+						if !executed {
+							receipt.Status = uint64(0)
+							fmt.Println("Reverse Error:", hexutil.Encode(output))
 
-					jsonReceipt, err := json.Marshal(receipt)
-					if err != nil {
-						HandleError(id, err)
-					}
+							jsonReceipt, err := json.Marshal(receipt)
+							if err != nil {
+								HandleError(id, err)
+							}
 
-					json.Unmarshal(jsonReceipt, &receiptReverted)
-					receiptReverted["revertReason"] = hexutil.Encode(output)
-				}
-			}
-			if log.Topics[0].Hex() == "0x"+eventBadTransaction {
-				receipt.Status = uint64(0)
-				jsonReceipt, err := json.Marshal(receipt)
-				if err != nil {
-					HandleError(id, err)
-				}
+							json.Unmarshal(jsonReceipt, &receiptReverted)
+							receiptReverted["revertReason"] = hexutil.Encode(output)
+						}
+					}*/
+			/*			if log.Topics[0].Hex() == "0x"+eventBadTransaction {
+						receipt.Status = uint64(0)
+						jsonReceipt, err := json.Marshal(receipt)
+						if err != nil {
+							HandleError(id, err)
+						}
 
-				json.Unmarshal(jsonReceipt, &receiptReverted)
-				output := getBadTransaction(id, log.Data)
-				receiptReverted["revertReason"] = hexutil.Encode(output)
-			}
+						json.Unmarshal(jsonReceipt, &receiptReverted)
+						output := getBadTransaction(id, log.Data)
+						receiptReverted["revertReason"] = hexutil.Encode(output)
+					}*/
 		}
 	}
 	result := new(rpc.JsonrpcMessage)
@@ -185,7 +184,7 @@ func (service *RelaySignerService) GetTransactionReceipt(id json.RawMessage, tra
 
 }
 
-//GetTransactionCount of account
+// GetTransactionCount of account
 func (service *RelaySignerService) GetTransactionCount(id json.RawMessage, from string) *rpc.JsonrpcMessage {
 	client := new(bl.Client)
 	err := client.Connect(service.Config.Application.NodeURL)
@@ -222,7 +221,7 @@ func (service *RelaySignerService) GetTransactionCount(id json.RawMessage, from 
 	return result.Response(fmt.Sprintf("0x%x", count))
 }
 
-//VerifyGasLimit sent a transaction
+// VerifyGasLimit sent a transaction
 func (service *RelaySignerService) VerifyGasLimit(gasLimit uint64, id json.RawMessage) (bool, error) {
 	client := new(bl.Client)
 	err := client.Connect(service.Config.Application.NodeURL)
@@ -248,7 +247,7 @@ func (service *RelaySignerService) VerifyGasLimit(gasLimit uint64, id json.RawMe
 	return true, nil
 }
 
-//VerifySender sent a transaction
+// VerifySender sent a transaction
 func (service *RelaySignerService) VerifySender(sender common.Address, id json.RawMessage) (bool, error) {
 	client := new(bl.Client)
 	err := client.Connect(service.Config.Application.NodeURL)
@@ -269,7 +268,7 @@ func (service *RelaySignerService) VerifySender(sender common.Address, id json.R
 	return isPermitted, nil
 }
 
-//DecreaseGasUsed by node
+// DecreaseGasUsed by node
 func (service *RelaySignerService) DecreaseGasUsed(id json.RawMessage) bool {
 	client := new(bl.Client)
 	err := client.Connect(service.Config.Application.NodeURL)
@@ -406,7 +405,7 @@ func decrement() {
 	log.GeneralLogger.Println("gas limit was reseted to 0")
 }
 
-//HandleError
+// HandleError
 func HandleError(id json.RawMessage, err error) *rpc.JsonrpcMessage {
 	log.GeneralLogger.Println(err.Error())
 	result := new(rpc.JsonrpcMessage)
