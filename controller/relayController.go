@@ -1,36 +1,37 @@
 package controller
 
 import (
-	"encoding/json"
-	"sync"
-	"errors"
-	"net/http/httputil"
-	"net/http"
-	"net/url"
-	"io/ioutil"
 	"bytes"
-	"github.com/lacchain/gas-relay-signer/rpc"
-	"github.com/lacchain/gas-relay-signer/model"
-	"github.com/lacchain/gas-relay-signer/service"
+	"encoding/json"
+	"errors"
+	"io/ioutil"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"sync"
+
 	log "github.com/lacchain/gas-relay-signer/audit"
+	"github.com/lacchain/gas-relay-signer/model"
+	"github.com/lacchain/gas-relay-signer/rpc"
+	"github.com/lacchain/gas-relay-signer/service"
 )
 
 var lock sync.Mutex
 
-//RelayController is the main controller
+// RelayController is the main controller
 type RelayController struct {
 	// The controller's configuration
-	Config *model.Config
+	Config             *model.Config
 	RelaySignerService *service.RelaySignerService
 }
 
-//Init controller
-func (controller *RelayController) Init(config *model.Config, relaySignerService *service.RelaySignerService){
+// Init controller
+func (controller *RelayController) Init(config *model.Config, relaySignerService *service.RelaySignerService) {
 	controller.Config = config
 	controller.RelaySignerService = relaySignerService
 }
 
-//SignTransaction ...
+// SignTransaction ...
 func (controller *RelayController) SignTransaction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -38,12 +39,12 @@ func (controller *RelayController) SignTransaction(w http.ResponseWriter, r *htt
 
 	buf, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		handleError(nil,err)
+		handleError(nil, err)
 	}
 	rdr1 := ioutil.NopCloser(bytes.NewBuffer(buf))
 	rdr2 := ioutil.NopCloser(bytes.NewBuffer(buf))
 
-//	log.GeneralLogger.Println("Request body : ", rdr1)
+	//	log.GeneralLogger.Println("Request body : ", rdr1)
 
 	var rpcMessage rpc.JsonrpcMessage
 
@@ -54,40 +55,40 @@ func (controller *RelayController) SignTransaction(w http.ResponseWriter, r *htt
 		return
 	}
 
-	log.GeneralLogger.Println("JSON-RPC Method:",rpcMessage.Method);
+	log.GeneralLogger.Println("JSON-RPC Method:", rpcMessage.Method)
 
-	if (rpcMessage.IsPrivTransaction()){
-		r.Body=rdr2
+	if rpcMessage.IsPrivTransaction() {
+		r.Body = rdr2
 		log.GeneralLogger.Println("Is a private Transaction, forward to Besu->Orion")
 
-		serveReverseProxy(controller.Config.Application.NodeURL,w,r)
-	}else if (rpcMessage.IsPrivRawTransaction()){
-		r.Body=rdr2
+		serveReverseProxy(controller.Config.Application.NodeURL, w, r)
+	} else if rpcMessage.IsPrivRawTransaction() {
+		r.Body = rdr2
 		log.GeneralLogger.Println("Is a private send Transaction, decrease gas used")
 
 		controller.RelaySignerService.DecreaseGasUsed(rpcMessage.ID)
 
 		log.GeneralLogger.Println("forward to Besu->Orion")
-		serveReverseProxy(controller.Config.Application.NodeURL,w,r)
-	}else if (rpcMessage.IsRawTransaction()){
-		processRawTransaction(controller.RelaySignerService,rpcMessage, w)
+		serveReverseProxy(controller.Config.Application.NodeURL, w, r)
+	} else if rpcMessage.IsRawTransaction() {
+		processRawTransaction(controller.RelaySignerService, rpcMessage, w)
 		return
-	}else if (rpcMessage.IsGetTransactionReceipt()){
-		processGetTransactionReceipt(controller.RelaySignerService,rpcMessage, w)
+	} else if rpcMessage.IsGetTransactionReceipt() {
+		processGetTransactionReceipt(controller.RelaySignerService, rpcMessage, w)
 		return
-	}else if(rpcMessage.IsGetTransactionCount()){
-		processTransactionCount(controller.RelaySignerService,rpcMessage, w)
+	} else if rpcMessage.IsGetTransactionCount() {
+		processTransactionCount(controller.RelaySignerService, rpcMessage, w)
 		return
-	//}else if(rpcMessage.IsGetBlockByNumber()){
-	//	processGetBlockByNumber(controller.RelaySignerService,rpcMessage, w)
-	//	return
-	}else{
-	//	r.Body=rdr2
+		//}else if(rpcMessage.IsGetBlockByNumber()){
+		//	processGetBlockByNumber(controller.RelaySignerService,rpcMessage, w)
+		//	return
+	} else {
+		//	r.Body=rdr2
 		err := errors.New("method is not supported")
 		data := handleError(rpcMessage.ID, err)
 		w.Write(data)
 		return
-	//	serveReverseProxy(controller.Config.Application.NodeURL,w,r)
+		//	serveReverseProxy(controller.Config.Application.NodeURL,w,r)
 	}
 }
 
@@ -95,7 +96,7 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 	// parse the url
 	url, err := url.Parse(target)
 	if err != nil {
-		handleError(nil,err)
+		handleError(nil, err)
 	}
 	// create the reverse proxy
 	proxy := httputil.NewSingleHostReverseProxy(url)
@@ -110,12 +111,12 @@ func serveReverseProxy(target string, res http.ResponseWriter, req *http.Request
 	proxy.ServeHTTP(res, req)
 }
 
-func handleError(messageID json.RawMessage, err error) ([]byte) {
-//	log.GeneralLogger.Println(err)
-	data, err := json.Marshal(service.HandleError(messageID,err))
+func handleError(messageID json.RawMessage, err error) []byte {
+	//	log.GeneralLogger.Println(err)
+	data, err := json.Marshal(service.HandleError(messageID, err))
 	if err != nil {
 		log.GeneralLogger.Println("Error trying to marshall a response to client")
 	}
-	
+
 	return data
 }
