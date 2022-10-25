@@ -1,105 +1,200 @@
 package service
 
 import (
-	"testing"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"fmt"
-	"log"
-	"io/ioutil"
-	"encoding/hex"
-	"github.com/lacchain/gas-relay-signer/model"
-	"github.com/lacchain/gas-relay-signer/rpc"
+	"testing"
+
+	"github.com/LACNetNetworks/gas-relay-signer/model"
+	"github.com/LACNetNetworks/gas-relay-signer/rpc"
 	"github.com/ethereum/go-ethereum/common"
 )
 
 var sequence uint8 = 0
 
-func TestInit ( t *testing.T ){
-	dir, _ :=os.Getwd()
-	
-	createKeyMock(dir+"/keyMock")
+func TestInit(t *testing.T) {
+	srv := serverMock()
+	defer srv.Close()
+
+	dir, _ := os.Getwd()
+
+	createKeyMock(dir + "/keyMock")
 	setKeyMock()
 
-	applicationConfig := model.ApplicationConfig{NodeKeyPath: dir+"/keyMock"}
+	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL + "/getRelayHubContract", NodeKeyPath: dir + "/keyMock"}
+	applicationConfig.ContractAddress = "0xdD37c69fF29C4b93A346Ed6dF184f48A71800b7E"
 	config := model.Config{Application: applicationConfig}
 	relaySignerService := new(RelaySignerService)
-	
+
 	relaySignerService.Init(&config)
 
-    err := os.RemoveAll(dir+"/log") 
-    if err != nil { 
-        log.Fatal(err) 
-    }
-    
-    err = os.Remove("keyMock") 
-    if err != nil {
-        log.Fatal(err) 
-    } 
+	err := os.RemoveAll(dir + "/log")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    if relaySignerService.Config.Application.Key != "b3e7374dca5ca90c3899dbb2c978051437fb15534c945bf59df16d6c80be27c0" {
+	err = os.Remove("keyMock")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if relaySignerService.Config.Application.Key != "b3e7374dca5ca90c3899dbb2c978051437fb15534c945bf59df16d6c80be27c0" {
 		t.Errorf("Private Key wasn't loaded from file")
+	}
+
+	if relaySignerService.Config.Application.RelayHubContractAddress.Hex() != "0xfF6D55d01FB12695EA00c071aD8aF3CE44cF3A91" {
+		t.Errorf("RelayHub Smart Contract can't be loaded from Proxy")
 	}
 }
 
-func TestFailInit (t *testing.T ){
-    applicationConfig := model.ApplicationConfig{NodeKeyPath: "./keyMock"}
+func TestFailInit(t *testing.T) {
+	applicationConfig := model.ApplicationConfig{NodeKeyPath: "./keyMock"}
 	config := model.Config{Application: applicationConfig}
 	relaySignerService := new(RelaySignerService)
-	
+
 	os.Unsetenv("WRITER_KEY")
 
 	err := relaySignerService.Init(&config)
 
-    if err.Error() != "Environment variable WRITER_KEY not set"{
-        t.Errorf("A environment variable shouldn't be set")
-    }
+	if err.Error() != "Environment variable WRITER_KEY not set" {
+		t.Errorf("A environment variable shouldn't be set")
+	}
 }
 
-func TestGetTransactionCount (t *testing.T ){
+func TestGetTransactionCount(t *testing.T) {
 	srv := serverMock()
 	defer srv.Close()
 
 	contents := []byte(`{"jsonrpc":"2.0","method":"eth_getTransactionCount","params":["0x92c9885663f6e84127c857d3137936c424b7e07555d2bc7d8bd781b3f0847ac8"],"id":53}`)
 
-	
 	var rpcMessage rpc.JsonrpcMessage
-	_ = json.Unmarshal(contents,&rpcMessage)
+	_ = json.Unmarshal(contents, &rpcMessage)
 
 	var params []string
 	_ = json.Unmarshal(rpcMessage.Params, &params)
-	
-	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL+"/getTransactionCount"}
+
+	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL + "/getTransactionCount", Key: "b3e7374dca5ca90c3899dbb2c978051437fb15534c945bf59df16d6c80be27c0"}
 	config := model.Config{Application: applicationConfig}
+
 	relaySignerService := new(RelaySignerService)
 	_ = relaySignerService.Init(&config)
-	jsonResponse := relaySignerService.GetTransactionCount(rpcMessage.ID,params[0])
+	relayHubAddress := common.HexToAddress("0xdD37c69fF29C4b93A346Ed6dF184f48A71800b7E")
+	relaySignerService.Config.Application.RelayHubContractAddress = &relayHubAddress
+	relaySignerService.Config.Application.ContractAddress = "0xdD37c69fF29C4b93A346Ed6dF184f48A71800b7E"
+	jsonResponse := relaySignerService.GetTransactionCount(rpcMessage.ID, params[0], false)
 
-	if jsonResponse.String() != `{"jsonrpc":"2.0","id":53,"result":345}` {
+	fmt.Println(jsonResponse)
+
+	if jsonResponse.String() != `{"jsonrpc":"2.0","id":53,"result":"0x159"}` {
 		t.Errorf("Incorrect nonce was gotten")
 	}
 }
 
-func TestGetTransactionReceipt (t *testing.T ){
+func TestGetTransactionCountLatest(t *testing.T) {
+	srv := serverMock()
+	defer srv.Close()
+
+	contents := []byte(`{"jsonrpc":"2.0","method":"eth_getTransactionCount","params":["0x92c9885663f6e84127c857d3137936c424b7e07555d2bc7d8bd781b3f0847ac8","latest"],"id":53}`)
+
+	var rpcMessage rpc.JsonrpcMessage
+	_ = json.Unmarshal(contents, &rpcMessage)
+
+	var params []string
+	_ = json.Unmarshal(rpcMessage.Params, &params)
+
+	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL + "/getTransactionCount", Key: "b3e7374dca5ca90c3899dbb2c978051437fb15534c945bf59df16d6c80be27c0"}
+	config := model.Config{Application: applicationConfig}
+
+	relaySignerService := new(RelaySignerService)
+	_ = relaySignerService.Init(&config)
+	relayHubAddress := common.HexToAddress("0xdD37c69fF29C4b93A346Ed6dF184f48A71800b7E")
+	relaySignerService.Config.Application.RelayHubContractAddress = &relayHubAddress
+	relaySignerService.Config.Application.ContractAddress = "0xdD37c69fF29C4b93A346Ed6dF184f48A71800b7E"
+	jsonResponse := relaySignerService.GetTransactionCount(rpcMessage.ID, params[0], false)
+
+	fmt.Println(jsonResponse)
+
+	if jsonResponse.String() != `{"jsonrpc":"2.0","id":53,"result":"0x159"}` {
+		t.Errorf("Incorrect nonce was gotten")
+	}
+}
+
+func TestGetTransactionCountPending(t *testing.T) {
+	srv := serverMock()
+	defer srv.Close()
+
+	contents := []byte(`{"jsonrpc":"2.0","method":"eth_getTransactionCount","params":["0x92c9885663f6e84127c857d3137936c424b7e07555d2bc7d8bd781b3f0847ac8","pending"],"id":53}`)
+
+	var rpcMessage rpc.JsonrpcMessage
+	_ = json.Unmarshal(contents, &rpcMessage)
+
+	var params []string
+	_ = json.Unmarshal(rpcMessage.Params, &params)
+
+	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL + "/getTransactionCount", ContractAddress: "0xdD37c69fF29C4b93A346Ed6dF184f48A71800b7E"}
+	config := model.Config{Application: applicationConfig}
+	relaySignerService := new(RelaySignerService)
+	_ = relaySignerService.Init(&config)
+	relaySignerService.senders = make(map[string]*big.Int)
+	relaySignerService.senders["0x92c9885663f6e84127c857d3137936c424b7e07555d2bc7d8bd781b3f0847ac8"] = new(big.Int).SetUint64(200)
+	jsonResponse := relaySignerService.GetTransactionCount(rpcMessage.ID, params[0], true)
+
+	if jsonResponse.String() != `{"jsonrpc":"2.0","id":53,"result":"0xc8"}` {
+		t.Errorf("Incorrect nonce was gotten")
+	}
+}
+
+func TestGetTransactionCountPendingNoValue(t *testing.T) {
+	srv := serverMock()
+	defer srv.Close()
+
+	contents := []byte(`{"jsonrpc":"2.0","method":"eth_getTransactionCount","params":["0x92c9885663f6e84127c857d3137936c424b7e07555d2bc7d8bd781b3f0847ac8","pending"],"id":53}`)
+
+	var rpcMessage rpc.JsonrpcMessage
+	_ = json.Unmarshal(contents, &rpcMessage)
+
+	var params []string
+	_ = json.Unmarshal(rpcMessage.Params, &params)
+
+	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL + "/getTransactionCount", ContractAddress: "0xdD37c69fF29C4b93A346Ed6dF184f48A71800b7E", Key: "b3e7374dca5ca90c3899dbb2c978051437fb15534c945bf59df16d6c80be27c0"}
+	config := model.Config{Application: applicationConfig}
+	relaySignerService := new(RelaySignerService)
+	_ = relaySignerService.Init(&config)
+	relayHubAddress := common.HexToAddress("0xdD37c69fF29C4b93A346Ed6dF184f48A71800b7E")
+	relaySignerService.Config.Application.RelayHubContractAddress = &relayHubAddress
+	relaySignerService.Config.Application.ContractAddress = "0xdD37c69fF29C4b93A346Ed6dF184f48A71800b7E"
+	relaySignerService.senders = make(map[string]*big.Int)
+	jsonResponse := relaySignerService.GetTransactionCount(rpcMessage.ID, params[0], true)
+
+	if jsonResponse.String() != `{"jsonrpc":"2.0","id":53,"result":"0x159"}` {
+		t.Errorf("Incorrect nonce was gotten")
+	}
+}
+
+func TestGetTransactionReceipt(t *testing.T) {
 	srv := serverMock()
 	defer srv.Close()
 
 	contents := []byte(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["0x504ce587a65bdbdb6414a0c6c16d86a04dd79bfcc4f2950eec9634b30ce5370f"],"id":53}`)
 
-	
 	var rpcMessage rpc.JsonrpcMessage
-	_ = json.Unmarshal(contents,&rpcMessage)
+	_ = json.Unmarshal(contents, &rpcMessage)
 
 	var params []string
 	_ = json.Unmarshal(rpcMessage.Params, &params)
-	
-	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL+"/getReceipt"}
+
+	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL + "/getReceipt"}
 	config := model.Config{Application: applicationConfig}
 	relaySignerService := new(RelaySignerService)
 	_ = relaySignerService.Init(&config)
-	jsonResponse := relaySignerService.GetTransactionReceipt(rpcMessage.ID,params[0])
+	jsonResponse := relaySignerService.GetTransactionReceipt(rpcMessage.ID, params[0])
 
 	var result map[string]interface{}
 	json.Unmarshal([]byte(jsonResponse.String()), &result)
@@ -111,24 +206,23 @@ func TestGetTransactionReceipt (t *testing.T ){
 	}
 }
 
-func TestGetTransactionReceiptRevertReason (t *testing.T ){
+func TestGetTransactionReceiptRevertReason(t *testing.T) {
 	srv := serverMock()
 	defer srv.Close()
 
 	contents := []byte(`{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["0x504ce587a65bdbdb6414a0c6c16d86a04dd79bfcc4f2950eec9634b30ce5370f"],"id":53}`)
 
-	
 	var rpcMessage rpc.JsonrpcMessage
-	_ = json.Unmarshal(contents,&rpcMessage)
+	_ = json.Unmarshal(contents, &rpcMessage)
 
 	var params []string
 	_ = json.Unmarshal(rpcMessage.Params, &params)
-	
-	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL+"/getReceiptRevertReason"}
+
+	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL + "/getReceiptRevertReason"}
 	config := model.Config{Application: applicationConfig}
 	relaySignerService := new(RelaySignerService)
 	_ = relaySignerService.Init(&config)
-	jsonResponse := relaySignerService.GetTransactionReceipt(rpcMessage.ID,params[0])
+	jsonResponse := relaySignerService.GetTransactionReceipt(rpcMessage.ID, params[0])
 
 	var result map[string]interface{}
 	json.Unmarshal([]byte(jsonResponse.String()), &result)
@@ -140,31 +234,33 @@ func TestGetTransactionReceiptRevertReason (t *testing.T ){
 	}
 }
 
-func TestSendMetatransaction (t *testing.T ){
+func TestSendMetatransaction(t *testing.T) {
 	srv := serverMock()
 	defer srv.Close()
 
 	contents := []byte(`{"id":2914410858336929,"jsonrpc":"2.0","params":["0xf8840180831e8480946e6bbf31aa45042d53128339383fcd1c377b42c780a46057361d00000000000000000000000000000000000000000000000000000000000001591ba028934b543809922b277e85f6bcf7b1f25e937de05c5138e17fdfa480ba74e84ba055a2a611763ffcb748547408093551928c9549f95a0a9cabd3b1f1f2e166cc16"],"method":"eth_sendRawTransaction"}`)
 
 	var rpcMessage rpc.JsonrpcMessage
-	_ = json.Unmarshal(contents,&rpcMessage)
+	_ = json.Unmarshal(contents, &rpcMessage)
 
 	var params []string
 	_ = json.Unmarshal(rpcMessage.Params, &params)
 
-	dir, _ :=os.Getwd()
-	
-	createKeyMock(dir+"/keyMock")
+	dir, _ := os.Getwd()
+
+	createKeyMock(dir + "/keyMock")
 	setKeyMock()
 
-	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL+"/sendMetatransaction", ContractAddress: "0x0ae2Da68515Ef8DC4bBCa1fA1bcE00C508b2Af4B", NodeKeyPath: dir+"/keyMock"}
+	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL + "/getRelayHubContract", ContractAddress: "0x0ae2Da68515Ef8DC4bBCa1fA1bcE00C508b2Af4B", NodeKeyPath: dir + "/keyMock"}
 	config := model.Config{Application: applicationConfig}
 	relaySignerService := new(RelaySignerService)
 	_ = relaySignerService.Init(&config)
 
+	relaySignerService.Config.Application.NodeURL = srv.URL + "/sendMetatransaction"
+
 	to := common.HexToAddress("0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1")
 
-	encodedFunction,_ := hex.DecodeString("0xf861808082ea6094fd32cfc2e71611626d6368a41f915d0077a306a180b8446057361d000000000000000000000000000000000000000000000000000000000000003c000000000000000000000000173cf75f0905338597fcd38f5ce13e6840b230e9")
+	encodedFunction, _ := hex.DecodeString("0xf861808082ea6094fd32cfc2e71611626d6368a41f915d0077a306a180b8446057361d000000000000000000000000000000000000000000000000000000000000003c000000000000000000000000173cf75f0905338597fcd38f5ce13e6840b230e9")
 
 	var gasLimit uint64
 	var r [32]byte
@@ -172,17 +268,82 @@ func TestSendMetatransaction (t *testing.T ){
 
 	gasLimit = 200000
 
-	jsonResponse := relaySignerService.SendMetatransaction(rpcMessage.ID,&to,gasLimit,encodedFunction,27,r,s)
+	sender := "0x92c9885663f6e84127c857d3137936c424b7e07555d2bc7d8bd781b3f0847ac8"
 
-	err := os.Remove("keyMock") 
-    if err != nil {
-        log.Fatal(err) 
-    } 
+	jsonResponse := relaySignerService.SendMetatransaction(rpcMessage.ID, &to, gasLimit, encodedFunction, 27, r, s, sender, 34)
+
+	err := os.Remove("keyMock")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	log.Println(jsonResponse.String())
 
-	if jsonResponse.String() != `{"jsonrpc":"2.0","id":2914410858336929,"result":"0x4aea2982dd375d4b47f7d684239e40e60b41efc1d2b11bcfb3090a5dcf77a33c"}` {
+	if jsonResponse.String() != `{"jsonrpc":"2.0","id":2914410858336929,"result":"0x9c2fb4956ce18491021a534106fe50e7cfe86bcc373b1626623fa0366f4cc3bc"}` {
 		t.Errorf("Incorrect transactionHash was gotten")
+	}
+}
+
+func TestNonceAfterTransactions(t *testing.T) {
+	srv := serverMock()
+	defer srv.Close()
+
+	contents := []byte(`{"id":2914410858336929,"jsonrpc":"2.0","params":["0xf8840180831e8480946e6bbf31aa45042d53128339383fcd1c377b42c780a46057361d00000000000000000000000000000000000000000000000000000000000001591ba028934b543809922b277e85f6bcf7b1f25e937de05c5138e17fdfa480ba74e84ba055a2a611763ffcb748547408093551928c9549f95a0a9cabd3b1f1f2e166cc16"],"method":"eth_sendRawTransaction"}`)
+
+	var rpcMessage rpc.JsonrpcMessage
+	_ = json.Unmarshal(contents, &rpcMessage)
+
+	var params []string
+	_ = json.Unmarshal(rpcMessage.Params, &params)
+
+	dir, _ := os.Getwd()
+
+	createKeyMock(dir + "/keyMock")
+	setKeyMock()
+
+	applicationConfig := model.ApplicationConfig{NodeURL: srv.URL + "/getRelayHubContract", ContractAddress: "0x0ae2Da68515Ef8DC4bBCa1fA1bcE00C508b2Af4B", NodeKeyPath: dir + "/keyMock"}
+	config := model.Config{Application: applicationConfig}
+	relaySignerService := new(RelaySignerService)
+	_ = relaySignerService.Init(&config)
+
+	relaySignerService.Config.Application.NodeURL = srv.URL + "/sendMetatransaction"
+
+	to := common.HexToAddress("0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1")
+
+	encodedFunction, _ := hex.DecodeString("0xf861808082ea6094fd32cfc2e71611626d6368a41f915d0077a306a180b8446057361d000000000000000000000000000000000000000000000000000000000000003c000000000000000000000000173cf75f0905338597fcd38f5ce13e6840b230e9")
+
+	var gasLimit uint64
+	var r [32]byte
+	var s [32]byte
+
+	gasLimit = 200000
+
+	sender := "0x92c9885663f6e84127c857d3137936c424b7e07555d2bc7d8bd781b3f0847ac8"
+
+	for i := 34; i < 45; i++ {
+		jsonResponse := relaySignerService.SendMetatransaction(rpcMessage.ID, &to, gasLimit, encodedFunction, 27, r, s, sender, uint64(i))
+		if jsonResponse.String() != `{"jsonrpc":"2.0","id":2914410858336929,"result":"0x9c2fb4956ce18491021a534106fe50e7cfe86bcc373b1626623fa0366f4cc3bc"}` {
+			t.Errorf("Incorrect transactionHash was gotten")
+		}
+
+		jsonResponseNonce := relaySignerService.GetTransactionCount(rpcMessage.ID, sender, true)
+
+		fmt.Println(jsonResponseNonce)
+
+		nonce := fmt.Sprintf("%x", i)
+
+		fmt.Println(nonce)
+
+		responseNonce := fmt.Sprintf(`{"jsonrpc":"2.0","id":2914410858336929,"result":"0x%s"}`, nonce)
+
+		if jsonResponseNonce.String() != responseNonce {
+			t.Errorf("Incorrect nonce was gotten")
+		}
+	}
+
+	err := os.Remove("keyMock")
+	if err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -192,24 +353,25 @@ func serverMock() *httptest.Server {
 	handler.HandleFunc("/getReceipt", mockGetReceipt)
 	handler.HandleFunc("/getReceiptRevertReason", mockGetReceiptRevertReason)
 	handler.HandleFunc("/sendMetatransaction", mockSendMetatransaction)
+	handler.HandleFunc("/getRelayHubContract", mockGetRelayHubContract)
 
 	srv := httptest.NewServer(handler)
-	
+
 	return srv
 }
- 
+
 func mockGetNonce(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte(`{"jsonrpc" : "2.0","id" : 53,"result" : "0x0000000000000000000000000000000000000000000000000000000000000159"}`))
 }
 
 func mockSendMetatransaction(w http.ResponseWriter, r *http.Request) {
 	switch sequence {
-	case 0,1,3,4:
+	case 0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19, 20, 21, 22, 23:
 		_, _ = w.Write([]byte(`{"jsonrpc" : "2.0","id" : 53,"result" : "0x6"}`))
 	case 2:
-		_, _ = w.Write([]byte(`{"jsonrpc" : "2.0","id" : 53,"result" : "0x0000000000000000000000000000000000000000000000000000000000000006"}`))
-	case 5:
-		_, _ = w.Write([]byte(`{"jsonrpc" : "2.0","id" : 53,"result" : "0x0000000000000000000000000000000000000000000000000000000000000006"}`))
+		_, _ = w.Write([]byte(`{"jsonrpc" : "2.0","id" : 53,"result" : "0x6"}`))
+	case 15:
+		_, _ = w.Write([]byte(`{"jsonrpc" : "2.0","id" : 53,"result" : "0x6"}`))
 	}
 	sequence++
 }
@@ -392,14 +554,18 @@ func mockGetReceiptRevertReason(w http.ResponseWriter, r *http.Request) {
 	  }`))
 }
 
+func mockGetRelayHubContract(w http.ResponseWriter, r *http.Request) {
+	_, _ = w.Write([]byte(`{"jsonrpc" : "2.0","id" : 53,"result" : "0x000000000000000000000000ff6d55d01fb12695ea00c071ad8af3ce44cf3a91"}`))
+}
+
 func createKeyMock(path string) {
 	d1 := []byte("0xb3e7374dca5ca90c3899dbb2c978051437fb15534c945bf59df16d6c80be27c0")
-    err := ioutil.WriteFile(path, d1, 0644)
-    if err != nil{
-		fmt.Println("err:",err)
+	err := ioutil.WriteFile(path, d1, 0644)
+	if err != nil {
+		fmt.Println("err:", err)
 	}
 }
 
-func setKeyMock(){
-	os.Setenv("WRITER_KEY","0xb3e7374dca5ca90c3899dbb2c978051437fb15534c945bf59df16d6c80be27c0")
+func setKeyMock() {
+	os.Setenv("WRITER_KEY", "0xb3e7374dca5ca90c3899dbb2c978051437fb15534c945bf59df16d6c80be27c0")
 }
