@@ -8,11 +8,10 @@
 package service
 
 import (
-	"encoding/json"
-	//	"io/ioutil"
 	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
@@ -147,7 +146,7 @@ func (service *RelaySignerService) GetTransactionReceipt(id json.RawMessage, tra
 		eventTransactionRelayed := hex.EncodeToString(e.Sum(nil))
 
 		f.Write([]byte("BadTransactionSent(address,address,uint8)"))
-		eventBadTransaction := hex.EncodeToString(f.Sum(nil))
+		//eventBadTransaction := hex.EncodeToString(f.Sum(nil))
 
 		fmt.Println("deployed contract eventKeccak:", eventContractDeployed)
 		fmt.Println("transaction relayed eventKeccak:", eventTransactionRelayed)
@@ -171,17 +170,17 @@ func (service *RelaySignerService) GetTransactionReceipt(id json.RawMessage, tra
 					receiptReverted["revertReason"] = hexutil.Encode(output)
 				}
 			}
-			if log.Topics[0].Hex() == "0x"+eventBadTransaction {
-				receipt.Status = uint64(0)
-				jsonReceipt, err := json.Marshal(receipt)
-				if err != nil {
-					HandleError(id, err)
-				}
+			/*		if log.Topics[0].Hex() == "0x"+eventBadTransaction {
+					receipt.Status = uint64(0)
+					jsonReceipt, err := json.Marshal(receipt)
+					if err != nil {
+						HandleError(id, err)
+					}
 
-				json.Unmarshal(jsonReceipt, &receiptReverted)
-				output := getBadTransaction(id, log.Data)
-				receiptReverted["revertReason"] = hexutil.Encode(output)
-			}
+					json.Unmarshal(jsonReceipt, &receiptReverted)
+					output := getBadTransaction(id, log.Data)
+					receiptReverted["revertReason"] = hexutil.Encode(output)
+				}*/
 		}
 	}
 	result := new(rpc.JsonrpcMessage)
@@ -244,7 +243,21 @@ func (service *RelaySignerService) VerifyGasLimit(gasLimit uint64, id json.RawMe
 	}
 	defer client.Close()
 
-	currentGasLimit, err := client.GetCurrentGasLimit(*service.Config.Application.RelayHubContractAddress)
+	privateKey, err := crypto.HexToECDSA(service.Config.Application.Key)
+	if err != nil {
+		HandleError(id, err)
+	}
+
+	publicKey := privateKey.Public()
+	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		err := errors.New("error casting public key to ECDSA", -32602)
+		HandleError(id, err)
+	}
+
+	nodeAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+
+	currentGasLimit, err := client.GetNodeGasLimit(*service.Config.Application.RelayHubContractAddress, nodeAddress)
 	if err != nil {
 		return false, err
 	}

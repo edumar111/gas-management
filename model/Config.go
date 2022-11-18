@@ -1,13 +1,16 @@
 package model
 
+import "github.com/ethereum/go-ethereum/common"
+
 type ApplicationConfig struct {
-	NodeURL string `mapstructure:"nodeURL"`
-	WSURL string `mapstructure:"wsURL"`
-	ContractAddress string `mapstructure:"contractAddress"`
-	NodeKeyPath string `mapstructure:"nodeKeyPath"`
-	NodeAddressPath string `mapstructure:"nodeAddressPath"`
-	Key string `mapstructure:"key"`
-	Port string `mapstructure:"port"`
+	NodeURL                 string          `mapstructure:"nodeURL"`
+	WSURL                   string          `mapstructure:"wsURL"`
+	ContractAddress         string          `mapstructure:"contractAddress"`
+	RelayHubContractAddress *common.Address `mapstructure:"relayHubContractAddress"`
+	NodeKeyPath             string          `mapstructure:"nodeKeyPath"`
+	NodeAddressPath         string          `mapstructure:"nodeAddressPath"`
+	Key                     string          `mapstructure:"key"`
+	Port                    string          `mapstructure:"port"`
 }
 
 type KeyStoreConfig struct {
@@ -19,13 +22,13 @@ type PassphraseConfig struct {
 }
 
 type SecurityConfig struct {
-	PermissionsEnabled bool `mapstructure:"permissionsEnabled"`
+	PermissionsEnabled     bool   `mapstructure:"permissionsEnabled"`
 	AccountContractAddress string `mapstructure:"accountContractAddress"`
 }
 
 type Config struct {
-	Application  ApplicationConfig `mapstructure:"application"`
-	KeyStore  KeyStoreConfig `mapstructure:"keystore"`
-	Passphrase PassphraseConfig   `mapstructure:"passphrase"`
-	Security SecurityConfig `mapstructure:"security"`
+	Application ApplicationConfig `mapstructure:"application"`
+	KeyStore    KeyStoreConfig    `mapstructure:"keystore"`
+	Passphrase  PassphraseConfig  `mapstructure:"passphrase"`
+	Security    SecurityConfig    `mapstructure:"security"`
 }

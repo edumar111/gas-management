@@ -3,7 +3,9 @@ Copyright © 2020 Adrian Pareja <adriancc5.5@gmail.com>
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -13,13 +15,14 @@ limitations under the License.
 package main
 
 import (
-	"os"
 	"net/http"
+	"os"
+
+	log "github.com/LACNetNetworks/gas-relay-signer/audit"
+	"github.com/LACNetNetworks/gas-relay-signer/controller"
+	"github.com/LACNetNetworks/gas-relay-signer/model"
+	"github.com/LACNetNetworks/gas-relay-signer/service"
 	"github.com/spf13/viper"
-	"github.com/lacchain/gas-relay-signer/model"
-	"github.com/lacchain/gas-relay-signer/service"
-	"github.com/lacchain/gas-relay-signer/controller"
-	log "github.com/lacchain/gas-relay-signer/audit"
 )
 
 var config *model.Config
@@ -31,7 +34,7 @@ func main() {
 
 	relaySignerService = new(service.RelaySignerService)
 	err := relaySignerService.Init(config)
-	if err != nil{
+	if err != nil {
 		log.GeneralLogger.Fatal(err)
 		return
 	}
@@ -44,7 +47,7 @@ func main() {
 	close(done)
 }
 
-func getConfigFromFile()(*model.Config){
+func getConfigFromFile() *model.Config {
 	v := viper.New()
 	v.SetConfigName("config")
 	v.AddConfigPath(".")

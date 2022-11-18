@@ -7,35 +7,34 @@ import (
 	"math/big"
 	"strings"
 
+	log "github.com/LACNetNetworks/gas-relay-signer/audit"
+	relay "github.com/LACNetNetworks/gas-relay-signer/blockchain/contracts"
+	"github.com/LACNetNetworks/gas-relay-signer/errors"
+	"github.com/LACNetNetworks/gas-relay-signer/model"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	log "github.com/lacchain/gas-relay-signer/audit"
-	relay "github.com/lacchain/gas-relay-signer/blockchain/contracts"
-	"github.com/lacchain/gas-relay-signer/errors"
-	"github.com/lacchain/gas-relay-signer/model"
 )
 
 const (
-	gasUsedByRelay     = 300000
 	relayMetaTxMethod  = "relayMetaTx"
 	deployMetaTxMethod = "deployMetaTx"
 )
 
-//Client to manage connection to Ethereum
+// Client to manage connection to Ethereum
 type Client struct {
 	client *ethclient.Client
 }
 
-//GetEthclient ...
+// GetEthclient ...
 func (ec *Client) GetEthclient() *ethclient.Client {
 	return ec.client
 }
 
-//Connect to Ethereum
+// Connect to Ethereum
 func (ec *Client) Connect(nodeURL string) error {
 	client, err := ethclient.Dial(nodeURL)
 	if err != nil {
@@ -49,12 +48,12 @@ func (ec *Client) Connect(nodeURL string) error {
 	return nil
 }
 
-//Close ethereum connection
+// Close ethereum connection
 func (ec *Client) Close() {
 	ec.client.Close()
 }
 
-//ConfigTransaction from ethereum address contract
+// ConfigTransaction from ethereum address contract
 func (ec *Client) ConfigTransaction(key *ecdsa.PrivateKey, gasLimit uint64, pending bool) (*bind.TransactOpts, error) {
 	auth := bind.NewKeyedTransactor(key)
 
@@ -77,14 +76,6 @@ func (ec *Client) ConfigTransaction(key *ecdsa.PrivateKey, gasLimit uint64, pend
 		}
 	}
 
-	//REMOVE
-	/*gasPrice, err := ec.client.SuggestGasPrice(context.Background())
-	if err != nil {
-		msg := "can't get gas price suggested"
-		err = errors.FailedConfigTransaction.Wrapf(err, msg, -32603)
-		return nil, err
-	}*/
-
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0) // in wei
 	auth.GasLimit = gasLimit   // in units
@@ -95,7 +86,7 @@ func (ec *Client) ConfigTransaction(key *ecdsa.PrivateKey, gasLimit uint64, pend
 	return auth, nil
 }
 
-//SendMetatransaction into blockchain
+// SendMetatransaction into blockchain
 func (ec *Client) SendMetatransaction(contractAddress common.Address, options *bind.TransactOpts, to *common.Address, signingData []byte, v uint8, r [32]byte, s [32]byte) (*common.Hash, error) {
 	contract, err := relay.NewRelay(contractAddress, ec.client)
 	if err != nil {
@@ -170,7 +161,7 @@ func (ec *Client) GenerateTransaction(options *bind.TransactOpts, to *common.Add
 	return tx, nil
 }
 
-//GetTransactionReceipt ...
+// GetTransactionReceipt ...
 func (ec *Client) GetTransactionReceipt(transactionHash common.Hash) (*types.Receipt, error) {
 	receipt, err := ec.client.TransactionReceipt(context.Background(), transactionHash)
 	if err != nil {
@@ -186,7 +177,7 @@ func (ec *Client) GetTransactionReceipt(transactionHash common.Hash) (*types.Rec
 	return receipt, nil
 }
 
-//GetTransactionCount ...
+// GetTransactionCount ...
 func (ec *Client) GetTransactionCount(contractAddress common.Address, address common.Address, nodeAddress common.Address) (*big.Int, error) {
 	contract, err := relay.NewRelay(contractAddress, ec.client)
 	if err != nil {
@@ -208,7 +199,7 @@ func (ec *Client) GetTransactionCount(contractAddress common.Address, address co
 	return count, nil
 }
 
-//DecreaseGasUsed into blockchain
+// DecreaseGasUsed into blockchain
 func (ec *Client) DecreaseGasUsed(contractAddress common.Address, options *bind.TransactOpts, gasUsed *big.Int) (*common.Hash, error) {
 	contract, err := relay.NewRelay(contractAddress, ec.client)
 	if err != nil {
@@ -241,7 +232,7 @@ func (ec *Client) DecreaseGasUsed(contractAddress common.Address, options *bind.
 	return &transactionHash, nil
 }
 
-//GetBlockByNumber ...
+// GetBlockByNumber ...
 func (ec *Client) GetBlockByNumber(contractAddress common.Address, blockNumber *big.Int) (*types.Header, uint64, error) {
 	block, err := ec.client.HeaderByNumber(context.Background(), blockNumber)
 	if err != nil {
@@ -258,7 +249,7 @@ func (ec *Client) GetBlockByNumber(contractAddress common.Address, blockNumber *
 	return block, gasLimit.Uint64(), nil
 }
 
-//GetGasLimit ...
+// GetGasLimit ...
 func (ec *Client) GetGasLimit(contractAddress, nodeAddress common.Address) (*big.Int, error) {
 	contract, err := relay.NewRelay(contractAddress, ec.client)
 	if err != nil {
@@ -280,7 +271,7 @@ func (ec *Client) GetGasLimit(contractAddress, nodeAddress common.Address) (*big
 	return gasLimit, nil
 }
 
-//GetMaxBlockGasLimit ...
+// GetMaxBlockGasLimit ...
 func (ec *Client) GetMaxBlockGasLimit(contractAddress common.Address) (*big.Int, error) {
 	contract, err := relay.NewRelay(contractAddress, ec.client)
 	if err != nil {
@@ -302,7 +293,29 @@ func (ec *Client) GetMaxBlockGasLimit(contractAddress common.Address) (*big.Int,
 	return gasLimit, nil
 }
 
-//GetMaxBlockGasLimit ...
+// GetNodeGasLimit ...
+func (ec *Client) GetNodeGasLimit(contractAddress, nodeAddress common.Address) (*big.Int, error) {
+	contract, err := relay.NewRelay(contractAddress, ec.client)
+	if err != nil {
+		msg := fmt.Sprintf("can't instance RelayHub contract %s", contractAddress)
+		err = errors.FailedContract.Wrapf(err, msg, -32603)
+		return nil, err
+	}
+
+	log.GeneralLogger.Println("RelayHub Contract instanced:", contractAddress.Hex())
+
+	nodeGasLimit, err := contract.GetNodeGasLimit(&bind.CallOpts{}, nodeAddress)
+
+	if err != nil {
+		msg := fmt.Sprintf("failed get node gasLimit from %s", contractAddress.Hex())
+		err = errors.CallBlockchainFailed.Wrapf(err, msg, -32603)
+		return nil, err
+	}
+
+	return nodeGasLimit, nil
+}
+
+// GetMaxBlockGasLimit ...
 func (ec *Client) GetCurrentGasLimit(contractAddress common.Address) (*big.Int, error) {
 	contract, err := relay.NewRelay(contractAddress, ec.client)
 	if err != nil {
@@ -324,7 +337,7 @@ func (ec *Client) GetCurrentGasLimit(contractAddress common.Address) (*big.Int, 
 	return gasLimit, nil
 }
 
-//AccountPermitted ...
+// AccountPermitted ...
 func (ec *Client) AccountPermitted(contractAddress, senderAddress common.Address) (bool, error) {
 	contract, err := relay.NewAccount(contractAddress, ec.client)
 	if err != nil {

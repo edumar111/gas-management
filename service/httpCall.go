@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-const DATA_CALL_RELAYHUB = "0x"
+const DATA_CALL_RELAYHUB = "0x7bdf2ec7"
 
 func isPoolEmpty(rpcURL string, id json.RawMessage) (bool, error) {
 	data := fmt.Sprintf(`{"jsonrpc":"2.0","method":"txpool_besuTransactions",
