@@ -10,10 +10,10 @@ import (
 	"net/url"
 	"sync"
 
-	log "github.com/lacchain/gas-relay-signer/audit"
-	"github.com/lacchain/gas-relay-signer/model"
-	"github.com/lacchain/gas-relay-signer/rpc"
-	"github.com/lacchain/gas-relay-signer/service"
+	log "github.com/LACNetNetworks/gas-relay-signer/audit"
+	"github.com/LACNetNetworks/gas-relay-signer/model"
+	"github.com/LACNetNetworks/gas-relay-signer/rpc"
+	"github.com/LACNetNetworks/gas-relay-signer/service"
 )
 
 var lock sync.Mutex
@@ -79,9 +79,6 @@ func (controller *RelayController) SignTransaction(w http.ResponseWriter, r *htt
 	} else if rpcMessage.IsGetTransactionCount() {
 		processTransactionCount(controller.RelaySignerService, rpcMessage, w)
 		return
-		//}else if(rpcMessage.IsGetBlockByNumber()){
-		//	processGetBlockByNumber(controller.RelaySignerService,rpcMessage, w)
-		//	return
 	} else {
 		//	r.Body=rdr2
 		err := errors.New("method is not supported")
