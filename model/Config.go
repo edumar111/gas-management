@@ -7,8 +7,6 @@ type ApplicationConfig struct {
 	WSURL                   string          `mapstructure:"wsURL"`
 	ContractAddress         string          `mapstructure:"contractAddress"`
 	RelayHubContractAddress *common.Address `mapstructure:"relayHubContractAddress"`
-	NodeKeyPath             string          `mapstructure:"nodeKeyPath"`
-	NodeAddressPath         string          `mapstructure:"nodeAddressPath"`
 	Key                     string          `mapstructure:"key"`
 	Port                    string          `mapstructure:"port"`
 }

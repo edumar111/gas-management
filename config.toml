@@ -1,9 +1,9 @@
 [application]
-nodeURL = "http://localhost:4545"
-wsURL = "ws://localhost:4546"
-contractAddress = "0x39Ec8898eAD9d5995858EC4eEfA47ccC9DDe9cf0"
-nodeKeyPath = "/root/lacchain/data/key"  
-nodeAddressPath = "/root/lacchain/data/nodeAddress"
+nodeURL = "http://35.185.112.219:4545"
+wsURL = "ws://35.185.112.219:4546"
+contractAddress = "0xa4B5eE2906090ce2cDbf5dfff944db26f397037D"
+nodeKeyPath = "./security/key"  
+nodeAddressPath = "./security/nodeAddress"
 port = 9001
 
 [keystore]
