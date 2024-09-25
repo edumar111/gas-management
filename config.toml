@@ -5,7 +5,7 @@ contractAddress = "0xa4B5eE2906090ce2cDbf5dfff944db26f397037D"
 nodeKeyPath = "./security/key"  
 nodeAddressPath = "./security/nodeAddress"
 port = 9001
-
+mode = "testnet"
 [keystore]
 agent = "/home/adrian/.ethereum/keystore/UTC--2020-06-26T19-00-23.241896464Z--bceda2ba9af65c18c7992849c312d1db77cf008e"
 

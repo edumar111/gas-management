@@ -9,10 +9,12 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/viper v1.13.0
 	golang.org/x/crypto v0.26.0
-	golang.org/x/oauth2 v0.22.0
+	golang.org/x/oauth2 v0.22.0 // indirect
 	google.golang.org/api v0.193.0
-	google.golang.org/genproto v0.0.0-20240814211410-ddb44dafa142
+	google.golang.org/genproto v0.0.0-20240814211410-ddb44dafa142 // indirect
 )
+
+require github.com/joho/godotenv v1.5.1
 
 require (
 	cloud.google.com/go v0.115.1 // indirect
