@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"io"
 	"net/http"
 	"strings"
 
@@ -82,7 +84,7 @@ func processTransactionCount(relaySignerService *service.RelaySignerService, rpc
 	w.Write(data)
 }
 
-func processRawTransaction(relaySignerService *service.RelaySignerService, rpcMessage rpc.JsonrpcMessage, w http.ResponseWriter) {
+func processRawTransaction(relaySignerService *service.RelaySignerService, rpcMessage rpc.JsonrpcMessage, w http.ResponseWriter, token string) {
 	log.GeneralLogger.Println("Is a rawTransaction")
 	var params []string
 	err := json.Unmarshal(rpcMessage.Params, &params)
@@ -179,8 +181,8 @@ func processRawTransaction(relaySignerService *service.RelaySignerService, rpcMe
 		w.Write(data)
 		return
 	}
-
-	response := relaySignerService.SendMetatransaction(rpcMessage.ID, decodeTransaction.To(), metaTxGasLimit, signingDataRLP, uint8(v.Uint64()), r, s, message.From().Hex(), decodeTransaction.Nonce())
+	keyID := getKeyID(token)
+	response := relaySignerService.SendMetatransaction(rpcMessage.ID, decodeTransaction.To(), metaTxGasLimit, signingDataRLP, uint8(v.Uint64()), r, s, message.From().Hex(), decodeTransaction.Nonce(), keyID)
 	data, err := json.Marshal(response)
 	if err != nil {
 		log.GeneralLogger.Println(err)
@@ -190,4 +192,51 @@ func processRawTransaction(relaySignerService *service.RelaySignerService, rpcMe
 		return
 	}
 	w.Write(data)
+}
+
+type ResponseBody struct {
+	KeyID string `json:"keyid"` // Campo que esperas en la respuesta JSON
+}
+
+func getKeyID(token string) string {
+	log.GeneralLogger.Println("getKeyID")
+	var responseBody ResponseBody
+	url := "http://localhost:3001/user/kms-id"
+	// Crear una solicitud HTTP
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.GeneralLogger.Fatalf("Error al crear la solicitud: %v", err)
+	}
+
+	// Agregar el JWT en el header Authorization
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("Content-Type", "application/json") // Si necesitas especificar el tipo de contenido
+
+	// Enviar la solicitud
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.GeneralLogger.Fatalf("Error al hacer la solicitud: %v", err)
+	}
+
+	// Leer la respuesta
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.GeneralLogger.Fatalf("Error al leer la respuesta: %v", err)
+	}
+
+	if resp.StatusCode == http.StatusOK {
+		// Decodificar el cuerpo de la respuesta JSON
+
+		if err := json.Unmarshal(body, &responseBody); err != nil {
+			log.GeneralLogger.Fatalf("Error al decodificar la respuesta JSON: %v", err)
+		}
+
+		// Imprimir el valor de keyid
+		fmt.Printf("El valor de keyid es: %s\n", responseBody.KeyID)
+	} else {
+		fmt.Printf("Error: Código de estado %d\n", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	return responseBody.KeyID
 }

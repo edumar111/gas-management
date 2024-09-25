@@ -34,6 +34,16 @@ func (controller *RelayController) Init(config *model.Config, relaySignerService
 // SignTransaction ...
 func (controller *RelayController) SignTransaction(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	token := r.URL.Query().Get("token")
+
+	// Verificar si el token está presente
+	if token == "" {
+		http.Error(w, "Token is missing", http.StatusBadRequest)
+		return
+	}
+
+	// Aquí puedes usar el token como desees
+	log.GeneralLogger.Printf("Token: %s", token)
 
 	//log.GeneralLogger.Println("Body:", r.Body)
 
@@ -71,7 +81,7 @@ func (controller *RelayController) SignTransaction(w http.ResponseWriter, r *htt
 		log.GeneralLogger.Println("forward to Besu->Orion")
 		serveReverseProxy(controller.Config.Application.NodeURL, w, r)
 	} else if rpcMessage.IsRawTransaction() {
-		processRawTransaction(controller.RelaySignerService, rpcMessage, w)
+		processRawTransaction(controller.RelaySignerService, rpcMessage, w, token)
 		return
 	} else if rpcMessage.IsGetTransactionReceipt() {
 		processGetTransactionReceipt(controller.RelaySignerService, rpcMessage, w)
