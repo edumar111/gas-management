@@ -48,7 +48,8 @@ const serviceAccountKeyPath = "testnet-lacnet.json"
 const projectID = "testnet-lacnet"
 const locationID = "us-east1"
 const keyRingID = "test-naas-kms"
-const keyID = "edumar111-key-3"
+
+//const keyID = "edumar111-key-3"
 
 var GAS_LIMIT uint64 = 0
 
@@ -100,7 +101,7 @@ func (service *RelaySignerService) Init(_config *model.Config) error {
 }
 
 // SendMetatransaction to blockchain
-func (service *RelaySignerService) SendMetatransaction(id json.RawMessage, to *common.Address, gasLimit uint64, signingData []byte, v uint8, r, s [32]byte, sender string, _nonce uint64) *rpc.JsonrpcMessage {
+func (service *RelaySignerService) SendMetatransaction(id json.RawMessage, to *common.Address, gasLimit uint64, signingData []byte, v uint8, r, s [32]byte, sender string, _nonce uint64, keyID string) *rpc.JsonrpcMessage {
 	client := new(bl.Client)
 
 	err := client.Connect(service.Config.Application.NodeURL)
@@ -134,7 +135,7 @@ func (service *RelaySignerService) SendMetatransaction(id json.RawMessage, to *c
 	}
 
 	kmsKeyPath := fmt.Sprintf("projects/%s/locations/%s/keyRings/%s/cryptoKeys/%s/cryptoKeyVersions/1", projectID, locationID, keyRingID, keyID)
-
+	log.GeneralLogger.Println("kmsKeyPath:", kmsKeyPath)
 	fromAddress, err := getAddressFromKMS(kmsKeyPath)
 	if err != nil {
 		log.GeneralLogger.Fatalf("Failed to get address from KMS: %v", err)
