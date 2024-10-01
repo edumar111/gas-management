@@ -68,7 +68,6 @@ func (controller *RelayController) SignTransaction(w http.ResponseWriter, r *htt
 	log.GeneralLogger.Println("JSON-RPC Method:", rpcMessage.Method)
 
 	if rpcMessage.IsPrivTransaction() {
-		r.Body = rdr2
 		log.GeneralLogger.Println("Is a private Transaction, forward to Besu->Orion")
 
 		serveReverseProxy(controller.Config.Application.NodeURL, w, r)
@@ -76,18 +75,24 @@ func (controller *RelayController) SignTransaction(w http.ResponseWriter, r *htt
 		r.Body = rdr2
 		log.GeneralLogger.Println("Is a private send Transaction, decrease gas used")
 
-		controller.RelaySignerService.DecreaseGasUsed(rpcMessage.ID)
+		// TODO: cambiar por usar firma KMS
+		//controller.RelaySignerService.DecreaseGasUsed(rpcMessage.ID)
 
 		log.GeneralLogger.Println("forward to Besu->Orion")
 		serveReverseProxy(controller.Config.Application.NodeURL, w, r)
 	} else if rpcMessage.IsRawTransaction() {
+		log.GeneralLogger.Println("Is a Raw Transaction")
 		processRawTransaction(controller.RelaySignerService, rpcMessage, w, token)
 		return
 	} else if rpcMessage.IsGetTransactionReceipt() {
+		log.GeneralLogger.Println("Is a Get Transaction Receipt")
 		processGetTransactionReceipt(controller.RelaySignerService, rpcMessage, w)
 		return
 	} else if rpcMessage.IsGetTransactionCount() {
-		processTransactionCount(controller.RelaySignerService, rpcMessage, w)
+		log.GeneralLogger.Println("Is a Get Transaction Count")
+		// TODO: cambiar por usar firma KMS
+		processTransactionCount(controller.RelaySignerService, rpcMessage, w, token)
+		log.GeneralLogger.Println("FINISH Is a Get Transaction Count =================================")
 		return
 	} else {
 		//	r.Body=rdr2

@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"io"
 	"net/http"
-	"strings"
 
 	log "github.com/LACNetNetworks/gas-relay-signer/audit"
 	"github.com/LACNetNetworks/gas-relay-signer/model"
@@ -45,8 +45,11 @@ func processGetTransactionReceipt(relaySignerService *service.RelaySignerService
 	w.Write(data)
 }
 
-func processTransactionCount(relaySignerService *service.RelaySignerService, rpcMessage rpc.JsonrpcMessage, w http.ResponseWriter) {
+// TODO: cambiar por usar firma KMS
+
+func processTransactionCount(relaySignerService *service.RelaySignerService, rpcMessage rpc.JsonrpcMessage, w http.ResponseWriter, token string) {
 	log.GeneralLogger.Println("Is getTransactionCount")
+	keyID := getKeyID(token)
 	var params []string
 	err := json.Unmarshal(rpcMessage.Params, &params)
 	if err != nil {
@@ -60,17 +63,24 @@ func processTransactionCount(relaySignerService *service.RelaySignerService, rpc
 	var response *rpc.JsonrpcMessage
 
 	if len(params) > 1 {
+		log.GeneralLogger.Println("params[1]:", params[1])
 		if strings.ToUpper(params[1]) == PENDING {
-			response = relaySignerService.GetTransactionCount(rpcMessage.ID, params[0], true)
+			log.GeneralLogger.Println("PENDING")
+			response = relaySignerService.GetTransactionCount(rpcMessage.ID, params[0], true, keyID)
+			log.GeneralLogger.Println("response:", response)
 		} else if strings.ToUpper(params[1]) == LATEST {
-			response = relaySignerService.GetTransactionCount(rpcMessage.ID, params[0], false)
+			log.GeneralLogger.Println("LATEST")
+			response = relaySignerService.GetTransactionCount(rpcMessage.ID, params[0], false, keyID)
 		} else {
+			log.GeneralLogger.Println("parameter not defined, only pending or latest are allowed")
 			err := errors.New("parameter not defined, only pending or latest are allowed")
 			data := handleError(rpcMessage.ID, err)
+
 			w.Write(data)
 		}
 	} else {
-		response = relaySignerService.GetTransactionCount(rpcMessage.ID, params[0], false)
+		log.GeneralLogger.Println("params[0]:", params[0])
+		response = relaySignerService.GetTransactionCount(rpcMessage.ID, params[0], false, keyID)
 	}
 
 	data, err := json.Marshal(response)
@@ -81,6 +91,7 @@ func processTransactionCount(relaySignerService *service.RelaySignerService, rpc
 		w.Write(data)
 		return
 	}
+	log.GeneralLogger.Println("data:", data)
 	w.Write(data)
 }
 
@@ -135,19 +146,22 @@ func processRawTransaction(relaySignerService *service.RelaySignerService, rpcMe
 
 	lock.Lock()
 	defer lock.Unlock()
-	isCorrectGasLimit, err := relaySignerService.VerifyGasLimit(metaTxGasLimit, rpcMessage.ID)
-	if err != nil {
-		data := handleError(rpcMessage.ID, err)
-		w.Write(data)
-		return
-	}
-	if !isCorrectGasLimit {
-		err := errors.New("transaction gas limit exceeds block gas limit")
-		data := handleError(rpcMessage.ID, err)
-		w.Write(data)
-		return
-	}
 
+	// TODO: cambiar por usar firma KMS
+	/*
+		isCorrectGasLimit, err := relaySignerService.VerifyGasLimit(metaTxGasLimit, rpcMessage.ID)
+		if err != nil {
+			data := handleError(rpcMessage.ID, err)
+			w.Write(data)
+			return
+		}
+		if !isCorrectGasLimit {
+			err := errors.New("transaction gas limit exceeds block gas limit")
+			data := handleError(rpcMessage.ID, err)
+			w.Write(data)
+			return
+		}
+	*/
 	log.GeneralLogger.Println("From:", message.From().Hex())
 	if decodeTransaction.To() != nil {
 		log.GeneralLogger.Println("To:", decodeTransaction.To().Hex())
@@ -233,9 +247,9 @@ func getKeyID(token string) string {
 		}
 
 		// Imprimir el valor de keyid
-		fmt.Printf("El valor de keyid es: %s\n", responseBody.KeyID)
+		log.GeneralLogger.Printf("El valor de keyid es: %s\n", responseBody.KeyID)
 	} else {
-		fmt.Printf("Error: Código de estado %d\n", resp.StatusCode)
+		log.ErrorLogger.Printf("Error: Código de estado %d\n", resp.StatusCode)
 	}
 	defer resp.Body.Close()
 	return responseBody.KeyID

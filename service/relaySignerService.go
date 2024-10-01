@@ -62,23 +62,23 @@ type RelaySignerService struct {
 func (service *RelaySignerService) Init(_config *model.Config) error {
 	service.Config = _config
 
-	key, exist := os.LookupEnv(ENVIRONMENT_KEY_NAME)
-	if !exist {
-		return errors.FailedReadEnv.New("Environment variable WRITER_KEY not set", -32602)
-	}
+	// key, exist := os.LookupEnv(ENVIRONMENT_KEY_NAME)
+	// if !exist {
+	// 	return errors.FailedReadEnv.New("Environment variable WRITER_KEY not set", -32602)
+	// }
 
-	privateKey, err := crypto.HexToECDSA(string(key[2:66]))
-	if err != nil {
-		return errors.FailedKeyConfig.New("Invalid ECDSA Key", -32602)
-	}
+	// privateKey, err := crypto.HexToECDSA(string(key[2:66]))
+	// if err != nil {
+	// 	return errors.FailedKeyConfig.New("Invalid ECDSA Key", -32602)
+	// }
 
-	publicKey := privateKey.Public()
-	_, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		return errors.FailedKeyConfig.New("Invalid ECDSA Public Key", -32602)
-	}
+	// publicKey := privateKey.Public()
+	// _, ok := publicKey.(*ecdsa.PublicKey)
+	// if !ok {
+	// 	return errors.FailedKeyConfig.New("Invalid ECDSA Public Key", -32602)
+	// }
 
-	service.Config.Application.Key = string(key[2:66])
+	//service.Config.Application.Key = string(key[2:66])
 
 	service.senders = make(map[string]*big.Int)
 
@@ -88,11 +88,11 @@ func (service *RelaySignerService) Init(_config *model.Config) error {
 		}
 	}
 
-	service.Config.Application.RelayHubContractAddress, err = getRelayHubContractAddress(service.Config.Application.NodeURL, "1000", service.Config.Application.ContractAddress, 10)
+	relayHubContractAddress, err := getRelayHubContractAddress(service.Config.Application.NodeURL, "1000", service.Config.Application.ContractAddress, 10)
 	if err != nil {
 		return errors.FailedKeyConfig.New("Can't get relayHub smart contract address from Proxy", -32610)
 	}
-
+	service.Config.Application.RelayHubContractAddress = relayHubContractAddress
 	return nil
 }
 
@@ -291,7 +291,8 @@ func (service *RelaySignerService) GetTransactionReceipt(id json.RawMessage, tra
 }
 
 // GetTransactionCount of account
-func (service *RelaySignerService) GetTransactionCount(id json.RawMessage, from string, isPending bool) *rpc.JsonrpcMessage {
+func (service *RelaySignerService) GetTransactionCount(id json.RawMessage, from string, isPending bool, keyID string) *rpc.JsonrpcMessage {
+	log.GeneralLogger.Println("GetTransactionCount")
 	var count *big.Int
 	if isPending && (service.senders[from] != nil) {
 		count = service.senders[from]
@@ -303,6 +304,60 @@ func (service *RelaySignerService) GetTransactionCount(id json.RawMessage, from 
 		}
 		defer client.Close()
 
+		// privateKey, err := crypto.HexToECDSA(service.Config.Application.Key)
+		// if err != nil {
+		// 	HandleError(id, err)
+		// }
+
+		// publicKey := privateKey.Public()
+		// publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
+		// if !ok {
+		// 	err := errors.New("error casting public key to ECDSA", -32602)
+		// 	HandleError(id, err)
+		// }
+
+		// nodeAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
+		ctx := context.Background()
+
+		clientKMS, err := getClientKMS(ctx)
+		if err != nil {
+			log.GeneralLogger.Fatalf("Failed to get KMS client: %v", err)
+		}
+
+		projectID := os.Getenv("GCP_PROJECT_ID")
+		locationID := os.Getenv("GCP_LOCATION_ID")
+		keyRingID := os.Getenv("GCP_KEY_RING_ID")
+
+		kmsKeyPath := fmt.Sprintf("projects/%s/locations/%s/keyRings/%s/cryptoKeys/%s/cryptoKeyVersions/1", projectID, locationID, keyRingID, keyID)
+		log.GeneralLogger.Println("kmsKeyPath:", kmsKeyPath)
+		accountAddress, err := getAddressFromKMS(clientKMS, ctx, kmsKeyPath)
+		log.GeneralLogger.Println("accountAddress:", accountAddress.Hex())
+		if err != nil {
+			log.GeneralLogger.Fatalf("Failed to get address from KMS: %v", err)
+		}
+		address := common.HexToAddress(from)
+
+		count, err = client.GetTransactionCount(*service.Config.Application.RelayHubContractAddress, address, accountAddress)
+		if err != nil {
+			HandleError(id, err)
+		}
+	}
+	log.GeneralLogger.Println("GetTransactionCount count:", count)
+	result := new(rpc.JsonrpcMessage)
+
+	result.ID = id
+	return result.Response(fmt.Sprintf("0x%x", count))
+}
+
+// VerifyGasLimit sent a transaction
+func (service *RelaySignerService) VerifyGasLimit(gasLimit uint64, id json.RawMessage, nodeAddress common.Address) (bool, error) {
+	client := new(bl.Client)
+	err := client.Connect(service.Config.Application.NodeURL)
+	if err != nil {
+		return false, err
+	}
+	defer client.Close()
+	/*
 		privateKey, err := crypto.HexToECDSA(service.Config.Application.Key)
 		if err != nil {
 			HandleError(id, err)
@@ -316,44 +371,7 @@ func (service *RelaySignerService) GetTransactionCount(id json.RawMessage, from 
 		}
 
 		nodeAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-
-		address := common.HexToAddress(from)
-
-		count, err = client.GetTransactionCount(*service.Config.Application.RelayHubContractAddress, address, nodeAddress)
-		if err != nil {
-			HandleError(id, err)
-		}
-	}
-
-	result := new(rpc.JsonrpcMessage)
-
-	result.ID = id
-	return result.Response(fmt.Sprintf("0x%x", count))
-}
-
-// VerifyGasLimit sent a transaction
-func (service *RelaySignerService) VerifyGasLimit(gasLimit uint64, id json.RawMessage) (bool, error) {
-	client := new(bl.Client)
-	err := client.Connect(service.Config.Application.NodeURL)
-	if err != nil {
-		return false, err
-	}
-	defer client.Close()
-
-	privateKey, err := crypto.HexToECDSA(service.Config.Application.Key)
-	if err != nil {
-		HandleError(id, err)
-	}
-
-	publicKey := privateKey.Public()
-	publicKeyECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		err := errors.New("error casting public key to ECDSA", -32602)
-		HandleError(id, err)
-	}
-
-	nodeAddress := crypto.PubkeyToAddress(*publicKeyECDSA)
-
+	*/
 	currentGasLimit, err := client.GetNodeGasLimit(*service.Config.Application.RelayHubContractAddress, nodeAddress)
 	if err != nil {
 		return false, err
@@ -390,7 +408,9 @@ func (service *RelaySignerService) VerifySender(sender common.Address, id json.R
 	return isPermitted, nil
 }
 
+//TODO: cambiar por usar firma KMS
 // DecreaseGasUsed by node
+/*
 func (service *RelaySignerService) DecreaseGasUsed(id json.RawMessage) bool {
 	client := new(bl.Client)
 	err := client.Connect(service.Config.Application.NodeURL)
@@ -415,7 +435,7 @@ func (service *RelaySignerService) DecreaseGasUsed(id json.RawMessage) bool {
 	}
 
 	return true
-}
+}*/
 
 func transactionRelayedFailed(id json.RawMessage, data []byte) (bool, []byte) {
 	var transactionRelayedEvent struct {
